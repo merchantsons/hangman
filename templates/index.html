@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🎮 Hangman Game Python</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(10deg, #667eea 0%, #23225a 80%);
+            font-family: 'Arial', sans-serif;
+        }
+        .hangman-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .letter-button {
+            transition: all 0.3s ease;
+        }
+        .letter-button:hover {
+            transform: scale(1.1);
+            background-color: #3a3c52;
+        }
+        .hangman-image {
+            max-width: 300px;
+            max-height: 300px;
+        }
+
+        .footer {
+            color: #fff;
+            text-align: center;
+            font-size: 1.8vmin;
+            margin-top: 2rem;
+            margin-left: 1vmin;
+        }
+
+
+        .head1 {
+            color: #fff;
+            font-weight: 600;
+            text-align: center;
+            font-size: 2.8vmin;
+            text-decoration: underline;
+            text-decoration-thickness: 0.5px;
+            margin-bottom: 0.5rem;
+            margin-top: -5vmin;
+        }
+
+        .head2 {
+            color: #000;
+            background-color: #ffa500;
+            font-weight: 600;
+            text-align: center;
+            font-size: 2vmin;
+            /* text-decoration: underline;
+            text-decoration-thickness: 0.5px; */
+            margin-bottom: 0.5rem;
+        }
+
+        .head3 {
+            color: #fff;
+            margin-top: -0.6vmin;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: 300;
+            font-size: 2vmin;
+        }
+
+        .letter-reveal {
+            display: inline-block;
+            margin: 0 5px;
+            min-width: 20px;
+            text-align: center;
+            border-bottom: 2px solid white;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen text-white">
+   <div> 
+    <div style="display: flex; justify-content: center; margin-left: 1vmin; margin-top: -12vmin; margin-bottom: 4vmin;"><img src="/static/logo.gif" width="200" height="220" alt="GIAIC LOGO" style="display: block;"></div>
+        <div class="head1">PROJECT 5: HANGMAN GAME PYTHON PROJECT</div>
+        <div class="head3">FOR GIAIC Q3 - ROLL # 00037391 BY MERCHANTSONS</div>
+    <div class="hangman-container p-8 flex flex-row w-full max-w-4xl">
+        <!-- Left Column: Hangman Image -->
+        <div class="w-1/2 flex flex-col items-center justify-center">
+            <h1 class="text-1xl font-bold mb-4 text-white">🎲 HANGMAN GAME PYTHON</h1>
+            <div class="mb-4">
+                <img id="hangman-stage" src="/static/hangman/0.jpg" alt="Hangman" class="hangman-image">
+            </div>
+        </div>
+
+        <!-- Right Column: Game Input and Controls -->
+        <div class="w-1/2 flex flex-col items-center justify-center">
+            <div id="game-info" class="mb-4 text-center">
+                <p id="category" class="text-xl font-semibold text-white"></p>
+                <div id="word-display" class="text-2xl tracking-widest mb-4 flex justify-center"></div>
+            </div>
+
+            <div id="letter-buttons" class="grid grid-cols-7 gap-2 mb-4">
+                <!-- Dynamically generate letter buttons -->
+            </div>
+
+            <div id="game-status" class="text-xl font-bold mb-4"></div>
+
+            <button id="new-game-btn" class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded hidden">
+                New Game
+            </button>
+        </div>
+    </div>
+    <div class="footer">© Copyright 2025 Merchantsons. All rights reserved.</div>
+   </div> 
+
+    <script>
+        let maxAttempts = 6;
+        let targetWord = '';
+        let incorrectGuessCount = 0;
+
+        // Mapping of incorrect guesses to image stages (0 to 10)
+        const IMAGE_STAGES = {
+            0: 0,   // No incorrect guesses
+            1: 2,   // 1 incorrect guess
+            2: 4,   // 2 incorrect guesses
+            3: 6,   // 3 incorrect guesses
+            4: 8,   // 4 incorrect guesses
+            5: 9,   // 5 incorrect guesses
+            6: 10   // 6 incorrect guesses (game over)
+        };
+
+        function initGame() {
+            incorrectGuessCount = 0;
+            fetch('/start_game', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('category').textContent = `CATEGORY: ${data.category}`;
+                    targetWord = data.word;
+
+                    // Initialize word display
+                    const wordDisplay = document.getElementById('word-display');
+                    wordDisplay.innerHTML = '';
+                    for (let i = 0; i < data.word.length; i++) {
+                        const letterSpan = document.createElement('span');
+                        letterSpan.classList.add('letter-reveal');
+                        letterSpan.textContent = '_';
+                        letterSpan.dataset.index = i;
+                        wordDisplay.appendChild(letterSpan);
+                    }
+
+                    document.getElementById('hangman-stage').src = '/static/hangman/0.jpg';
+                    maxAttempts = data.max_attempts;
+                    setupLetterButtons();
+                });
+        }
+
+        function setupLetterButtons() {
+            const letterButtons = document.getElementById('letter-buttons');
+            letterButtons.innerHTML = '';
+
+            for (let charCode = 97; charCode <= 122; charCode++) {
+                const letter = String.fromCharCode(charCode);
+                const button = document.createElement('button');
+                button.textContent = letter.toUpperCase();
+                button.classList.add(
+                    'letter-button',
+                    'bg-blue-800',
+                    'text-white',
+                    'rounded',
+                    'p-2',
+                    'hover:bg-blue-700'
+                );
+                button.onclick = () => guessLetter(letter, button);
+                letterButtons.appendChild(button);
+            }
+        }
+
+        function guessLetter(letter, button) {
+            button.disabled = true;
+            button.classList.add('opacity-50');
+
+            fetch('/guess', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ letter: letter })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'correct') {
+                    // Reveal correct letters
+                    result.revealed_letters.forEach(index => {
+                        const letterSpan = document.querySelector(`.letter-reveal[data-index="${index}"]`);
+                        letterSpan.textContent = targetWord[index].toUpperCase();
+                    });
+
+                    button.classList.add('bg-green-500');
+
+                    if (result.is_win) {
+                        endGame(true);
+                    }
+                } else if (result.status === 'incorrect') {
+                    button.classList.add('bg-red-500');
+
+                    // Increment incorrect guess count
+                    incorrectGuessCount++;
+
+                    // Update hangman image based on incorrect guess stages
+                    updateHangmanImage(incorrectGuessCount);
+
+                    // Reveal a letter based on incorrect guesses
+                    revealHintLetter();
+
+                    if (result.is_game_over) {
+                        endGame(false);
+                    }
+                }
+            });
+        }
+
+        function revealHintLetter() {
+            // Find an unrevealed letter to show
+            const unrevealedLetters = document.querySelectorAll('.letter-reveal:not(.revealed)');
+            if (unrevealedLetters.length > 0) {
+                const randomIndex = Math.floor(Math.random() * unrevealedLetters.length);
+                const letterToReveal = unrevealedLetters[randomIndex];
+                const index = letterToReveal.dataset.index;
+
+                letterToReveal.textContent = targetWord[index].toUpperCase();
+                letterToReveal.classList.add('revealed');
+            }
+        }
+
+        function updateHangmanImage(incorrectGuesses) {
+            // Map incorrect guesses to specific image stages
+            const imageNumber = IMAGE_STAGES[incorrectGuesses] || 10; // Default to 10 if out of range
+            document.getElementById('hangman-stage').src = `/static/hangman/${imageNumber}.jpg`;
+        }
+
+        function endGame(isWin) {
+            const gameStatus = document.getElementById('game-status');
+            const newGameBtn = document.getElementById('new-game-btn');
+
+            if (isWin) {
+                gameStatus.textContent = '🎉 Congratulations! You won!';
+                gameStatus.classList.add('text-green-400');
+
+                // Reveal full word
+                const letterSpans = document.querySelectorAll('.letter-reveal');
+                letterSpans.forEach((span, index) => {
+                    span.textContent = targetWord[index].toUpperCase();
+                });
+            } else {
+                gameStatus.textContent = '😢 Game Over! Better luck next time.';
+                gameStatus.classList.add('text-white');
+
+                // Reveal full word
+                const letterSpans = document.querySelectorAll('.letter-reveal');
+                letterSpans.forEach((span, index) => {
+                    span.textContent = targetWord[index].toUpperCase();
+                });
+            }
+
+            newGameBtn.classList.remove('hidden');
+
+            // Disable all letter buttons
+            document.querySelectorAll('.letter-button').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+            });
+        }
+
+        document.getElementById('new-game-btn').onclick = () => {
+            document.getElementById('game-status').textContent = '';
+            document.getElementById('game-status').classList.remove('text-green-400', 'text-red-400');
+            document.getElementById('new-game-btn').classList.add('hidden');
+            initGame();
+        };
+
+        // Start the first game
+        initGame();
+    </script>
+</body>
+</html>
